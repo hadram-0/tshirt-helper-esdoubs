@@ -1,0 +1,2 @@
+ALTER TABLE public.tshirt_orders ADD COLUMN IF NOT EXISTS last_name text NOT NULL DEFAULT '';
+ALTER TABLE public.tshirt_orders ADD CONSTRAINT tshirt_orders_last_name_len CHECK (char_length(last_name) <= 60);
