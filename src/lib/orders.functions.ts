@@ -22,7 +22,7 @@ export const adminLogout = createServerFn({ method: "POST" }).handler(async () =
   return { ok: true as const };
 });
 
-export const adminStatus = createServerFn({ method: "GET" }).handler(async () => {
+export const adminStatus = createServerFn({ method: "POST" }).handler(async () => {
   const { getAdminSession } = await import("./admin.server");
   const session = await getAdminSession();
   return { unlocked: Boolean(session.data.unlocked) };
