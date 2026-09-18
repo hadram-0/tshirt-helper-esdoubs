@@ -37,6 +37,7 @@ function AdminPage() {
 }
 
 function LoginCard() {
+  const qc = useQueryClient();
   const login = useServerFn(adminLogin);
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
@@ -49,7 +50,7 @@ function LoginCard() {
     try {
       const res = await login({ data: { password: password.trim() } });
       if (res.ok) {
-        window.location.reload();
+        qc.setQueryData(["admin-status"], { unlocked: true });
         return;
       }
       setError(true);
