@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   adminLogin,
   adminLogout,
@@ -10,7 +11,15 @@ import {
   listOrders,
   updateOrder,
 } from "@/lib/orders.functions";
-import { ALL_SIZES, ADULT_SIZES, CHILD_SIZES, GROUPS, groupLabel, type Order } from "@/lib/tshirt";
+import {
+  ALL_SIZES,
+  ADULT_SIZES,
+  CHILD_SIZES,
+  GROUPS,
+  formatDate,
+  groupLabel,
+  type Order,
+} from "@/lib/tshirt";
 import { exportExcel, exportPdf } from "@/lib/exports";
 
 export const Route = createFileRoute("/admin")({
@@ -33,29 +42,50 @@ function AdminPage() {
   if (status.isLoading) {
     return <p className="p-8 text-center text-muted-foreground">Chargement…</p>;
   }
+  if (status.data?.configError) {
+    return <ConfigErrorCard message={status.data.configError} />;
+  }
   return status.data?.unlocked ? <Dashboard /> : <LoginCard />;
+}
+
+function ConfigErrorCard({ message }: { message: string }) {
+  return (
+    <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-5">
+      <div className="rounded-xl border border-destructive bg-destructive/10 p-5">
+        <h1 className="mb-2 font-display text-xl uppercase text-destructive">
+          Configuration incomplète
+        </h1>
+        <p className="text-sm">{message}</p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Renseignez les variables <code>ADMIN_PASSWORD</code>, <code>SESSION_SECRET</code>,{" "}
+          <code>SUPABASE_URL</code> et <code>SUPABASE_SERVICE_ROLE_KEY</code> côté serveur, puis
+          rechargez cette page.
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function LoginCard() {
   const qc = useQueryClient();
   const login = useServerFn(adminLogin);
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError(false);
+    setError(null);
     try {
       const res = await login({ data: { password: password.trim() } });
       if (res.ok) {
-        qc.setQueryData(["admin-status"], { unlocked: true });
+        qc.setQueryData(["admin-status"], { unlocked: true, configError: null });
         return;
       }
-      setError(true);
+      setError(res.message);
     } catch {
-      setError(true);
+      setError("La connexion a échoué. Merci de réessayer.");
     } finally {
       setBusy(false);
     }
@@ -72,13 +102,13 @@ function LoginCard() {
           value={password}
           onChange={(e) => {
             setPassword(e.target.value);
-            setError(false);
+            setError(null);
           }}
           placeholder="Mot de passe"
           autoComplete="current-password"
           className="w-full rounded-xl border border-input px-4 py-4 text-lg"
         />
-        {error && <p className="text-sm text-destructive">Mot de passe incorrect.</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <button
           disabled={busy}
           className="rounded-xl bg-primary px-6 py-4 text-lg font-bold text-primary-foreground disabled:opacity-60"
@@ -102,27 +132,33 @@ function Dashboard() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Order | null>(null);
 
-  const all = orders.data ?? [];
+  const result = orders.data;
+  const all = useMemo(() => (result?.ok ? result.data : []), [result]);
+  const loadError = result && !result.ok ? result.message : null;
 
-  const filtered = useMemo(
-    () =>
-      all.filter(
-        (o) =>
-          (groupFilter === "all" || o.group_slug === groupFilter) &&
-          (sizeFilter === "all" || o.size === sizeFilter) &&
-          (search.trim() === "" ||
-            o.first_name.toLowerCase().includes(search.trim().toLowerCase())),
-      ),
-    [all, groupFilter, sizeFilter, search],
-  );
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return all.filter(
+      (o) =>
+        (groupFilter === "all" || o.group_slug === groupFilter) &&
+        (sizeFilter === "all" || o.size === sizeFilter) &&
+        (needle === "" ||
+          o.first_name.toLowerCase().includes(needle) ||
+          o.last_name.toLowerCase().includes(needle) ||
+          o.initials.toLowerCase().includes(needle)),
+    );
+  }, [all, groupFilter, sizeFilter, search]);
 
+  // Même enfant (groupe + prénom + initiales) enregistré avec des tailles différentes.
   const duplicates = useMemo(() => {
     const map = new Map<string, Order[]>();
     for (const o of all) {
       const key = `${o.group_slug}|${o.first_name.trim().toLowerCase()}|${o.initials.toUpperCase()}`;
       map.set(key, [...(map.get(key) ?? []), o]);
     }
-    return [...map.values()].filter((list) => list.length > 1);
+    return [...map.values()].filter(
+      (list) => list.length > 1 && new Set(list.map((o) => o.size)).size > 1,
+    );
   }, [all]);
 
   const saveMutation = useMutation({
@@ -132,20 +168,41 @@ function Dashboard() {
           id: o.id,
           group_slug: o.group_slug,
           first_name: o.first_name,
+          last_name: o.last_name,
           initials: o.initials,
           size: o.size,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
       setEditing(null);
+      toast.success("Demande mise à jour.");
       qc.invalidateQueries({ queryKey: ["orders"] });
     },
+    onError: () => toast.error("La modification a échoué."),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => remove({ data: { id } }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        toast.error(res.message);
+        return;
+      }
+      toast.success("Demande supprimée.");
+      qc.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: () => toast.error("La suppression a échoué."),
   });
+
+  function confirmDelete(order: Order) {
+    if (confirm(`Supprimer la demande de ${order.first_name} (${order.size}) ?`)) {
+      deleteMutation.mutate(order.id);
+    }
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8">
@@ -166,6 +223,12 @@ function Dashboard() {
 
       {orders.isLoading && <p className="text-muted-foreground">Chargement des commandes…</p>}
 
+      {loadError && (
+        <p className="mb-6 rounded-xl border border-destructive bg-destructive/10 p-4 text-sm text-destructive">
+          Impossible de charger les commandes : {loadError}
+        </p>
+      )}
+
       <section className="mb-8 rounded-xl border border-border p-5">
         <h2 className="mb-1 text-lg font-bold">📦 Récapitulatif commande</h2>
         <p className="mb-4 text-xl font-bold text-primary">Total : {all.length} t-shirts</p>
@@ -180,13 +243,15 @@ function Dashboard() {
         <div className="mt-5 flex flex-wrap gap-3">
           <button
             onClick={() => exportExcel(all)}
-            className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground"
+            disabled={all.length === 0}
+            className="rounded-lg bg-secondary px-4 py-2 text-sm font-semibold text-secondary-foreground disabled:opacity-50"
           >
             📊 Export Excel
           </button>
           <button
             onClick={() => exportPdf(all)}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            disabled={all.length === 0}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
           >
             🖨️ Export PDF
           </button>
@@ -208,9 +273,7 @@ function Dashboard() {
                 sizes.map((s) => (
                   <div key={s} className="flex justify-between py-0.5 text-sm">
                     <span className="text-muted-foreground">{s}</span>
-                    <span className="font-semibold">
-                      {list.filter((o) => o.size === s).length}
-                    </span>
+                    <span className="font-semibold">{list.filter((o) => o.size === s).length}</span>
                   </div>
                 ))
               )}
@@ -221,12 +284,24 @@ function Dashboard() {
 
       {duplicates.length > 0 && (
         <section className="mb-8 rounded-xl border border-accent bg-accent/15 p-4">
-          <h2 className="mb-2 font-bold">⚠️ Doublons potentiels</h2>
-          {duplicates.map((list, i) => (
-            <div key={i} className="mb-2 text-sm">
+          <h2 className="mb-1 font-bold">⚠️ Doublons potentiels</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Même enfant enregistré avec des tailles différentes — supprimez la mauvaise entrée.
+          </p>
+          {duplicates.map((list) => (
+            <div key={list[0]!.id} className="mb-3 rounded-lg bg-background/70 p-3">
               {list.map((o) => (
-                <div key={o.id}>
-                  {o.first_name} — {groupLabel(o.group_slug)} — {o.initials} — {o.size}
+                <div key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-1">
+                  <span className="text-sm">
+                    {o.first_name} {o.last_name} — {groupLabel(o.group_slug)} — {o.initials} —{" "}
+                    {o.size} — {formatDate(o.created_at)}
+                  </span>
+                  <button
+                    onClick={() => confirmDelete(o)}
+                    className="rounded border border-destructive px-2 py-1 text-xs text-destructive"
+                  >
+                    🗑️ Supprimer
+                  </button>
                 </div>
               ))}
             </div>
@@ -262,10 +337,15 @@ function Dashboard() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="🔎 Rechercher un enfant"
+          placeholder="🔎 Rechercher un prénom, un nom ou des initiales"
           className="flex-1 rounded-lg border border-input px-3 py-2 text-sm"
         />
       </div>
+
+      <p className="mb-2 text-sm text-muted-foreground">
+        {filtered.length} demande{filtered.length > 1 ? "s" : ""} affichée
+        {filtered.length > 1 ? "s" : ""}
+      </p>
 
       <div className="overflow-x-auto rounded-xl border border-border">
         <table className="w-full text-sm">
@@ -273,8 +353,10 @@ function Dashboard() {
             <tr>
               <Th>Groupe</Th>
               <Th>Prénom</Th>
+              <Th>Nom</Th>
               <Th>Initiales</Th>
               <Th>Taille</Th>
+              <Th>Date</Th>
               <Th>Actions</Th>
             </tr>
           </thead>
@@ -283,8 +365,10 @@ function Dashboard() {
               <tr key={o.id} className="border-t border-border">
                 <Td>{groupLabel(o.group_slug)}</Td>
                 <Td>{o.first_name}</Td>
+                <Td>{o.last_name}</Td>
                 <Td>{o.initials}</Td>
                 <Td>{o.size}</Td>
+                <Td>{formatDate(o.created_at)}</Td>
                 <Td>
                   <div className="flex gap-2">
                     <button
@@ -294,10 +378,7 @@ function Dashboard() {
                       ✏️ Modifier
                     </button>
                     <button
-                      onClick={() => {
-                        if (confirm(`Supprimer la demande de ${o.first_name} ?`))
-                          deleteMutation.mutate(o.id);
-                      }}
+                      onClick={() => confirmDelete(o)}
                       className="rounded border border-destructive px-2 py-1 text-xs text-destructive"
                     >
                       🗑️
@@ -308,7 +389,7 @@ function Dashboard() {
             ))}
             {filtered.length === 0 && !orders.isLoading && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                <td colSpan={7} className="p-6 text-center text-muted-foreground">
                   Aucune demande pour ces filtres.
                 </td>
               </tr>
@@ -336,6 +417,13 @@ function Dashboard() {
               <input
                 value={editing.first_name}
                 onChange={(e) => setEditing({ ...editing, first_name: e.target.value })}
+                placeholder="Prénom"
+                className="rounded-lg border border-input px-3 py-2"
+              />
+              <input
+                value={editing.last_name}
+                onChange={(e) => setEditing({ ...editing, last_name: e.target.value })}
+                placeholder="Nom"
                 className="rounded-lg border border-input px-3 py-2"
               />
               <input
@@ -343,6 +431,7 @@ function Dashboard() {
                 onChange={(e) =>
                   setEditing({ ...editing, initials: e.target.value.toUpperCase().slice(0, 4) })
                 }
+                placeholder="Initiales"
                 className="rounded-lg border border-input px-3 py-2 uppercase"
               />
               <select
@@ -369,10 +458,10 @@ function Dashboard() {
             <div className="mt-5 flex gap-3">
               <button
                 onClick={() => saveMutation.mutate(editing)}
-                disabled={saveMutation.isPending}
-                className="flex-1 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground"
+                disabled={saveMutation.isPending || !editing.first_name.trim()}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 font-semibold text-primary-foreground disabled:opacity-60"
               >
-                Enregistrer
+                {saveMutation.isPending ? "Enregistrement…" : "Enregistrer"}
               </button>
               <button
                 onClick={() => setEditing(null)}
