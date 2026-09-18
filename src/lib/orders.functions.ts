@@ -28,13 +28,13 @@ export const adminStatus = createServerFn({ method: "POST" }).handler(async () =
   return { unlocked: Boolean(session.data.unlocked) };
 });
 
-export const listOrders = createServerFn({ method: "GET" }).handler(async () => {
+export const listOrders = createServerFn({ method: "POST" }).handler(async () => {
   const { requireAdmin } = await import("./admin.server");
   await requireAdmin();
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("tshirt_orders")
-    .select("id, group_slug, first_name, initials, size, created_at")
+    .select("id, group_slug, first_name, last_name, initials, size, created_at")
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []) as Order[];
@@ -46,6 +46,7 @@ export const updateOrder = createServerFn({ method: "POST" })
       id: string;
       group_slug: string;
       first_name: string;
+      last_name: string;
       initials: string;
       size: string;
     }) => data,
@@ -59,6 +60,7 @@ export const updateOrder = createServerFn({ method: "POST" })
       .update({
         group_slug: data.group_slug,
         first_name: data.first_name.trim().slice(0, 60),
+        last_name: data.last_name.trim().slice(0, 60),
         initials: data.initials.trim().toUpperCase().slice(0, 4),
         size: data.size,
       })

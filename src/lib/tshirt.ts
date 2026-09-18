@@ -40,6 +40,7 @@ export type Order = {
   id: string;
   group_slug: string;
   first_name: string;
+  last_name: string;
   initials: string;
   size: string;
   created_at: string;
