@@ -37,7 +37,6 @@ function AdminPage() {
 }
 
 function LoginCard() {
-  const qc = useQueryClient();
   const login = useServerFn(adminLogin);
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
@@ -46,10 +45,19 @@ function LoginCard() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const res = await login({ data: { password } });
-    setBusy(false);
-    if (res.ok) await qc.invalidateQueries({ queryKey: ["admin-status"] });
-    else setError(true);
+    setError(false);
+    try {
+      const res = await login({ data: { password: password.trim() } });
+      if (res.ok) {
+        window.location.reload();
+        return;
+      }
+      setError(true);
+    } catch {
+      setError(true);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
