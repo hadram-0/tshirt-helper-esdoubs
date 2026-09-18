@@ -21,6 +21,7 @@ export type Database = {
           group_slug: string
           id: string
           initials: string
+          last_name: string
           size: string
         }
         Insert: {
@@ -29,6 +30,7 @@ export type Database = {
           group_slug: string
           id?: string
           initials: string
+          last_name?: string
           size: string
         }
         Update: {
@@ -37,6 +39,7 @@ export type Database = {
           group_slug?: string
           id?: string
           initials?: string
+          last_name?: string
           size?: string
         }
         Relationships: []
