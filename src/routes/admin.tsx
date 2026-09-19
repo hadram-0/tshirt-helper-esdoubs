@@ -121,7 +121,7 @@ function Dashboard() {
   const duplicates = useMemo(() => {
     const map = new Map<string, Order[]>();
     for (const o of all) {
-      const key = `${o.group_slug}|${o.first_name.trim().toLowerCase()}|${o.initials.toUpperCase()}`;
+      const key = `${o.group_slug}|${o.first_name.trim().toLowerCase()}|${(o.last_name ?? "").trim().toLowerCase()}|${o.initials.toUpperCase()}`;
       map.set(key, [...(map.get(key) ?? []), o]);
     }
     return [...map.values()].filter((list) => list.length > 1);
@@ -208,14 +208,23 @@ function Dashboard() {
               {sizes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucune demande</p>
               ) : (
-                sizes.map((s) => (
-                  <div key={s} className="flex justify-between py-0.5 text-sm">
-                    <span className="text-muted-foreground">{s}</span>
-                    <span className="font-semibold">
-                      {list.filter((o) => o.size === s).length}
-                    </span>
-                  </div>
-                ))
+                <>
+                  {sizes.map((s) => (
+                    <div key={s} className="flex justify-between py-0.5 text-sm">
+                      <span className="text-muted-foreground">{s}</span>
+                      <span className="font-semibold">
+                        {list.filter((o) => o.size === s).length}
+                      </span>
+                    </div>
+                  ))}
+                  <ul className="mt-3 border-t border-border/60 pt-2 text-sm">
+                    {list.map((o) => (
+                      <li key={o.id} className="py-0.5">
+                        {o.first_name} {o.last_name ?? ""} — {o.initials} — {o.size}
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           );
