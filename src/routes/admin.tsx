@@ -285,6 +285,7 @@ function Dashboard() {
             <tr>
               <Th>Groupe</Th>
               <Th>Prénom</Th>
+              <Th>Nom</Th>
               <Th>Initiales</Th>
               <Th>Taille</Th>
               <Th>Actions</Th>
@@ -295,6 +296,7 @@ function Dashboard() {
               <tr key={o.id} className="border-t border-border">
                 <Td>{groupLabel(o.group_slug)}</Td>
                 <Td>{o.first_name}</Td>
+                <Td>{o.last_name}</Td>
                 <Td>{o.initials}</Td>
                 <Td>{o.size}</Td>
                 <Td>
@@ -320,7 +322,7 @@ function Dashboard() {
             ))}
             {filtered.length === 0 && !orders.isLoading && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                <td colSpan={6} className="p-6 text-center text-muted-foreground">
                   Aucune demande pour ces filtres.
                 </td>
               </tr>
@@ -348,6 +350,13 @@ function Dashboard() {
               <input
                 value={editing.first_name}
                 onChange={(e) => setEditing({ ...editing, first_name: e.target.value })}
+                placeholder="Prénom"
+                className="rounded-lg border border-input px-3 py-2"
+              />
+              <input
+                value={editing.last_name ?? ""}
+                onChange={(e) => setEditing({ ...editing, last_name: e.target.value })}
+                placeholder="Nom"
                 className="rounded-lg border border-input px-3 py-2"
               />
               <input
