@@ -105,8 +105,23 @@ function GroupPage() {
           </div>
 
           <div>
+            <label htmlFor="lastName" className="mb-2 block text-sm font-bold">
+              2. Nom de l'enfant
+            </label>
+            <input
+              id="lastName"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              maxLength={60}
+              required
+              placeholder="Nom"
+              className="w-full rounded-xl border border-input bg-background px-4 py-4 text-lg outline-none focus:border-primary focus:ring-2 focus:ring-ring/40"
+            />
+          </div>
+
+          <div>
             <label htmlFor="initials" className="mb-2 block text-sm font-bold">
-              2. Initiales
+              3. Initiales
             </label>
             <input
               id="initials"
