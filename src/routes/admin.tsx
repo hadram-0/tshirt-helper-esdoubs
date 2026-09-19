@@ -111,7 +111,9 @@ function Dashboard() {
           (groupFilter === "all" || o.group_slug === groupFilter) &&
           (sizeFilter === "all" || o.size === sizeFilter) &&
           (search.trim() === "" ||
-            o.first_name.toLowerCase().includes(search.trim().toLowerCase())),
+            `${o.first_name} ${o.last_name ?? ""}`
+              .toLowerCase()
+              .includes(search.trim().toLowerCase())),
       ),
     [all, groupFilter, sizeFilter, search],
   );
@@ -119,7 +121,7 @@ function Dashboard() {
   const duplicates = useMemo(() => {
     const map = new Map<string, Order[]>();
     for (const o of all) {
-      const key = `${o.group_slug}|${o.first_name.trim().toLowerCase()}|${o.initials.toUpperCase()}`;
+      const key = `${o.group_slug}|${o.first_name.trim().toLowerCase()}|${(o.last_name ?? "").trim().toLowerCase()}|${o.initials.toUpperCase()}`;
       map.set(key, [...(map.get(key) ?? []), o]);
     }
     return [...map.values()].filter((list) => list.length > 1);
@@ -132,6 +134,7 @@ function Dashboard() {
           id: o.id,
           group_slug: o.group_slug,
           first_name: o.first_name,
+          last_name: o.last_name ?? "",
           initials: o.initials,
           size: o.size,
         },
@@ -205,14 +208,23 @@ function Dashboard() {
               {sizes.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Aucune demande</p>
               ) : (
-                sizes.map((s) => (
-                  <div key={s} className="flex justify-between py-0.5 text-sm">
-                    <span className="text-muted-foreground">{s}</span>
-                    <span className="font-semibold">
-                      {list.filter((o) => o.size === s).length}
-                    </span>
-                  </div>
-                ))
+                <>
+                  {sizes.map((s) => (
+                    <div key={s} className="flex justify-between py-0.5 text-sm">
+                      <span className="text-muted-foreground">{s}</span>
+                      <span className="font-semibold">
+                        {list.filter((o) => o.size === s).length}
+                      </span>
+                    </div>
+                  ))}
+                  <ul className="mt-3 border-t border-border/60 pt-2 text-sm">
+                    {list.map((o) => (
+                      <li key={o.id} className="py-0.5">
+                        {o.first_name} {o.last_name ?? ""} — {o.initials} — {o.size}
+                      </li>
+                    ))}
+                  </ul>
+                </>
               )}
             </div>
           );
@@ -273,6 +285,7 @@ function Dashboard() {
             <tr>
               <Th>Groupe</Th>
               <Th>Prénom</Th>
+              <Th>Nom</Th>
               <Th>Initiales</Th>
               <Th>Taille</Th>
               <Th>Actions</Th>
@@ -283,6 +296,7 @@ function Dashboard() {
               <tr key={o.id} className="border-t border-border">
                 <Td>{groupLabel(o.group_slug)}</Td>
                 <Td>{o.first_name}</Td>
+                <Td>{o.last_name}</Td>
                 <Td>{o.initials}</Td>
                 <Td>{o.size}</Td>
                 <Td>
@@ -308,7 +322,7 @@ function Dashboard() {
             ))}
             {filtered.length === 0 && !orders.isLoading && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-muted-foreground">
+                <td colSpan={6} className="p-6 text-center text-muted-foreground">
                   Aucune demande pour ces filtres.
                 </td>
               </tr>
@@ -336,6 +350,13 @@ function Dashboard() {
               <input
                 value={editing.first_name}
                 onChange={(e) => setEditing({ ...editing, first_name: e.target.value })}
+                placeholder="Prénom"
+                className="rounded-lg border border-input px-3 py-2"
+              />
+              <input
+                value={editing.last_name ?? ""}
+                onChange={(e) => setEditing({ ...editing, last_name: e.target.value })}
+                placeholder="Nom"
                 className="rounded-lg border border-input px-3 py-2"
               />
               <input
