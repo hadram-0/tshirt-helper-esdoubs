@@ -16,6 +16,7 @@ export function exportExcel(orders: Order[]) {
   const rows = orders.map((o) => ({
     Groupe: groupLabel(o.group_slug),
     Prénom: o.first_name,
+    Nom: o.last_name ?? "",
     Initiales: o.initials,
     Taille: o.size,
   }));
