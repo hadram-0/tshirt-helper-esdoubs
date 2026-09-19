@@ -56,6 +56,7 @@ function GroupPage() {
     const { error: err } = await supabase.from("tshirt_orders").insert({
       group_slug: group,
       first_name: firstName.trim(),
+      last_name: lastName.trim(),
       initials: initials.trim().toUpperCase(),
       size,
     });
@@ -70,6 +71,7 @@ function GroupPage() {
 
   function reset() {
     setFirstName("");
+    setLastName("");
     setInitials("");
     setSize("");
     setSaved(null);
