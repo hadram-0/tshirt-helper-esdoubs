@@ -111,7 +111,9 @@ function Dashboard() {
           (groupFilter === "all" || o.group_slug === groupFilter) &&
           (sizeFilter === "all" || o.size === sizeFilter) &&
           (search.trim() === "" ||
-            o.first_name.toLowerCase().includes(search.trim().toLowerCase())),
+            `${o.first_name} ${o.last_name ?? ""}`
+              .toLowerCase()
+              .includes(search.trim().toLowerCase())),
       ),
     [all, groupFilter, sizeFilter, search],
   );
@@ -132,6 +134,7 @@ function Dashboard() {
           id: o.id,
           group_slug: o.group_slug,
           first_name: o.first_name,
+          last_name: o.last_name ?? "",
           initials: o.initials,
           size: o.size,
         },
