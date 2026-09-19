@@ -30,12 +30,15 @@ export function exportExcel(orders: Order[]) {
     const list = orders.filter((o) => o.group_slug === g.slug);
     const sheet = list.map((o) => ({
       Prénom: o.first_name,
+      Nom: o.last_name ?? "",
       Initiales: o.initials,
       Taille: o.size,
     }));
     XLSX.utils.book_append_sheet(
       wb,
-      XLSX.utils.json_to_sheet(sheet.length ? sheet : [{ Prénom: "", Initiales: "", Taille: "" }]),
+      XLSX.utils.json_to_sheet(
+        sheet.length ? sheet : [{ Prénom: "", Nom: "", Initiales: "", Taille: "" }],
+      ),
       g.label.replace(/[^\w -]/g, "").slice(0, 31),
     );
   }
@@ -62,8 +65,8 @@ export function exportPdf(orders: Order[]) {
     const list = orders.filter((o) => o.group_slug === g.slug);
     if (!list.length) continue;
     autoTable(doc, {
-      head: [[`${g.label} — ${list.length} enfants`, "Initiales", "Taille"]],
-      body: list.map((o) => [o.first_name, o.initials, o.size]),
+      head: [[`${g.label} — ${list.length} enfants`, "Nom", "Initiales", "Taille"]],
+      body: list.map((o) => [o.first_name, o.last_name ?? "", o.initials, o.size]),
       theme: "striped",
       headStyles: { fillColor: [30, 58, 138] },
     });
