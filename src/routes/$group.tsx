@@ -33,6 +33,7 @@ function GroupPage() {
 
   const [step, setStep] = useState<Step>("form");
   const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [initials, setInitials] = useState("");
   const [size, setSize] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,7 @@ function GroupPage() {
   function goReview(e: React.FormEvent) {
     e.preventDefault();
     if (!firstName.trim()) return setError("Merci d'indiquer le prénom de l'enfant.");
+    if (!lastName.trim()) return setError("Merci d'indiquer le nom de l'enfant.");
     if (!initials.trim()) return setError("Merci d'indiquer les initiales.");
     if (!size) return setError("Merci de choisir une taille.");
     setError(null);
