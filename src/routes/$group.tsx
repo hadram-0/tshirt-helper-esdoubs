@@ -137,7 +137,7 @@ function GroupPage() {
 
           <div>
             <label htmlFor="size" className="mb-2 block text-sm font-bold">
-              3. Taille du t-shirt
+              4. Taille du t-shirt
             </label>
             <select
               id="size"
@@ -184,6 +184,7 @@ function GroupPage() {
           <dl className="rounded-xl border border-border bg-muted/40 p-5 text-base">
             <Row label="Groupe" value={label} />
             <Row label="Prénom" value={firstName.trim()} />
+            <Row label="Nom" value={lastName.trim()} />
             <Row label="Initiales" value={initials.toUpperCase()} />
             <Row label="Taille" value={size} />
           </dl>
